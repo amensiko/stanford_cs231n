@@ -44,7 +44,6 @@ class TwoLayerNet(object):
     """
     Compute the loss and gradients for a two layer fully connected neural
     network.
-
     Inputs:
     - X: Input data of shape (N, D). Each X[i] is a training sample.
     - y: Vector of training labels. y[i] is the label for X[i], and each y[i] is
@@ -52,11 +51,9 @@ class TwoLayerNet(object):
       is not passed then we only return scores, and if it is passed then we
       instead return the loss and gradients.
     - reg: Regularization strength.
-
     Returns:
     If y is None, return a matrix scores of shape (N, C) where scores[i, c] is
     the score for class c on input X[i].
-
     If y is not None, instead return a tuple of:
     - loss: Loss (data loss and regularization loss) for this batch of training
       samples.
@@ -75,7 +72,11 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    pass
+    y1 = X.dot(W1) + b1 #(N,H) + (H)
+    h1 = np.maximum(0, y1)
+    y2 = h1.dot(W2) + b2
+    scores = y2
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -90,9 +91,19 @@ class TwoLayerNet(object):
     # TODO: Finish the forward pass, and compute the loss. This should include  #
     # both the data loss and L2 regularization for W1 and W2. Store the result  #
     # in the variable loss, which should be a scalar. Use the Softmax           #
-    # classifier loss.                                                          #
+    # classifier loss. So that your results match ours, multiply the            #
+    # regularization loss by 0.5                                                #
     #############################################################################
-    pass
+    # softmax score is -sum(right_scores) + log(sum(e^{all other scores (for each sample)}))
+    exp_scores = np.exp(scores)
+    probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True) # [N x K]
+
+    # select all corresponding log likelihood score for each class
+    # N being the number of sample and take the mean of it
+    corect_logprobs = -np.log(probs[range(N), y]) 
+    loss = np.sum(corect_logprobs) / N #np.mean()
+    reg_loss = 0.5 * reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+    loss += reg_loss
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -104,7 +115,39 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    pass
+    # need to backprop loss = np.sum(-score_correct_classes + np.log(total_score))/N
+
+    # gradient of np.log(total_score) = np.log( np.sum(np.exp(scores), axis=1) ) w.r.t scores
+    dy2 = probs
+    dy2[range(N),y] -= 1
+
+    # don't forget the constant 1/N (derivate of constant is constant...)
+    dy2 /= N
+
+    # y2 = h1.dot(W2) + b2
+    dW2 = h1.T.dot(dy2)
+
+    # chaine rule
+    dh1 = dy2.dot(W2.T)
+
+    # gradient of Relu
+    dy1 = dh1 * (y1 >= 0)
+
+    # y1 = X.dot(W1) + b1
+    dW1 = X.T.dot(dy1)
+
+    db1 = np.sum(dy1, axis=0)
+    db2 = np.sum(dy2, axis=0)
+
+    # Regularization
+    dW1 += reg * W1
+    dW2 += reg * W2
+    
+
+    grads['W1'] = dW1
+    grads['W2'] = dW2
+    grads['b1'] = db1
+    grads['b2'] = db2
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
